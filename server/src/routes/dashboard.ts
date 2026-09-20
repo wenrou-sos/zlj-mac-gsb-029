@@ -33,6 +33,14 @@ const routes: FastifyPluginAsync = async (app) => {
       `SELECT count(*)::int AS n FROM absence_alerts WHERE status='open'`,
     );
 
+    // 待审批请假 / 今日在假
+    const leaveStats = await one<{ pending: number; on_leave: number }>(`
+      SELECT count(*) FILTER (WHERE status='pending')::int AS pending,
+             count(*) FILTER (WHERE status='approved'
+                              AND CURRENT_DATE BETWEEN start_date AND end_date)::int AS on_leave
+      FROM leave_requests
+    `);
+
     // 预计 3 日内舍单
     const expiring = await many(`
       SELECT g.id, m.dharma_name,
@@ -61,6 +69,8 @@ const routes: FastifyPluginAsync = async (app) => {
       status_counts: statusCounts,
       attendance_today: attendanceToday,
       open_alerts: openAlerts.n,
+      pending_leaves: leaveStats.pending,
+      on_leave_today: leaveStats.on_leave,
       expiring_guadan: expiring,
       pending_inspections: pendingInspections,
       bed_usage: bedUsage,

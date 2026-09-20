@@ -1,7 +1,7 @@
 <template>
   <n-spin :show="loading">
-    <n-grid :cols="4" :x-gap="16" :y-gap="16" item-responsive responsive="screen">
-      <n-grid-item span="4 m:2 l:1">
+    <n-grid :cols="5" :x-gap="16" :y-gap="16" item-responsive responsive="screen">
+      <n-grid-item span="5 m:2 l:1">
         <n-card>
           <n-statistic label="在寺总众" :value="inHouseTotal">
             <template #suffix>位</template>
@@ -11,7 +11,7 @@
           </div>
         </n-card>
       </n-grid-item>
-      <n-grid-item span="4 m:2 l:1">
+      <n-grid-item span="5 m:2 l:1">
         <n-card>
           <n-statistic label="床位使用" :value="data?.bed_usage.occupied ?? 0">
             <template #suffix>/ {{ data?.bed_usage.total ?? 0 }}</template>
@@ -26,7 +26,7 @@
           />
         </n-card>
       </n-grid-item>
-      <n-grid-item span="4 m:2 l:1">
+      <n-grid-item span="5 m:2 l:1">
         <n-card hoverable class="clickable" @click="router.push('/attendance')">
           <n-statistic label="今日早/晚课缺勤" :value="todayAbsent">
             <template #suffix>人次</template>
@@ -37,7 +37,15 @@
           </div>
         </n-card>
       </n-grid-item>
-      <n-grid-item span="4 m:2 l:1">
+      <n-grid-item span="5 m:2 l:1">
+        <n-card hoverable class="clickable" @click="router.push('/leaves')">
+          <n-statistic label="待审批请假" :value="data?.pending_leaves ?? 0">
+            <template #suffix>件</template>
+          </n-statistic>
+          <div class="stat-sub">今日在假 {{ data?.on_leave_today ?? 0 }} 人</div>
+        </n-card>
+      </n-grid-item>
+      <n-grid-item span="5 m:2 l:1">
         <n-card hoverable class="clickable" @click="router.push('/alerts')">
           <n-statistic label="缺勤满次待办" :value="data?.open_alerts ?? 0">
             <template #suffix>件</template>

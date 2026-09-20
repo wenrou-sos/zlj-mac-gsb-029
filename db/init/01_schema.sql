@@ -23,6 +23,9 @@ CREATE TYPE attendance_status AS ENUM ('present', 'absent', 'leave');
 
 CREATE TYPE alert_status AS ENUM ('open', 'acknowledged');
 
+CREATE TYPE leave_status AS ENUM ('pending', 'approved', 'rejected', 'cancelled', 'returned');
+-- pending 待审批 / approved 已准假(在假中) / rejected 已驳回 / cancelled 已撤销 / returned 已销假
+
 -- ---------------------------------------------------------------------
 -- 僧人总表（挂单/考察/常住共用身份记录）
 -- ---------------------------------------------------------------------
@@ -104,6 +107,32 @@ CREATE UNIQUE INDEX one_pending_inspection_per_monk
     ON inspections(monk_id) WHERE result = 'pending';
 
 -- ---------------------------------------------------------------------
+-- 请销假（请假申请 → 知客审批 → 销假/撤销）
+-- ---------------------------------------------------------------------
+CREATE TABLE leave_requests (
+    id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    monk_id       UUID NOT NULL REFERENCES monks(id) ON DELETE CASCADE,
+    start_date    DATE NOT NULL,                             -- 请假起
+    end_date      DATE NOT NULL,                             -- 请假讫
+    sessions      session_type[] NOT NULL DEFAULT '{morning,evening}', -- 请假课次
+    reason        TEXT NOT NULL,                             -- 请假事由
+    status        leave_status NOT NULL DEFAULT 'pending',
+    requested_by  VARCHAR(64),                               -- 提交人（本人/客堂代录）
+    reviewed_by   VARCHAR(64),                               -- 审批人（知客）
+    reviewed_at   TIMESTAMPTZ,
+    review_note   TEXT,                                      -- 审批意见
+    return_date   DATE,                                      -- 实际销假日期
+    returned_by   VARCHAR(64),                               -- 销假经办
+    returned_at   TIMESTAMPTZ,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT leave_date_range_chk CHECK (end_date >= start_date),
+    CONSTRAINT leave_sessions_chk CHECK (array_length(sessions, 1) >= 1)
+);
+CREATE INDEX idx_leave_status ON leave_requests(status);
+CREATE INDEX idx_leave_monk ON leave_requests(monk_id);
+
+-- ---------------------------------------------------------------------
 -- 早晚课考勤（按人 / 日期 / 课次唯一）
 -- ---------------------------------------------------------------------
 CREATE TABLE attendance (
@@ -114,6 +143,7 @@ CREATE TABLE attendance (
     status      attendance_status NOT NULL DEFAULT 'present',
     recorded_by VARCHAR(64),                               -- 登记人（知客/僧值）
     note        TEXT,
+    leave_id    UUID REFERENCES leave_requests(id) ON DELETE SET NULL, -- 请假审批同步来源
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (monk_id, attend_date, session)
@@ -152,10 +182,14 @@ CREATE TRIGGER trg_guadan_updated  BEFORE UPDATE ON guadan
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_attendance_updated BEFORE UPDATE ON attendance
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_leave_updated   BEFORE UPDATE ON leave_requests
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ---------------------------------------------------------------------
 -- 缺勤累计满三次自动提醒：近 30 个自然日内缺勤 >= 3 次，
--- 自动在 absence_alerts 生成/更新一条客堂待办
+-- 自动在 absence_alerts 生成/更新一条客堂待办；
+-- 反之缺勤被更正为随众/请假（如请假审批通过同步考勤）后，
+-- 近 30 日缺勤不足 3 次时自动办结该僧人的待处理提醒
 -- ---------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION check_absence_threshold() RETURNS TRIGGER AS $$
 DECLARE
@@ -184,6 +218,21 @@ BEGIN
                        last_absence  = NEW.attend_date
                  WHERE monk_id = NEW.monk_id AND status = 'open';
             END IF;
+        END IF;
+    ELSE
+        -- 缺勤被更正（请假审批通过 / 登记修正）：缺勤不足 3 次则自动办结待办
+        SELECT count(*) INTO v_count
+        FROM attendance
+        WHERE monk_id = NEW.monk_id
+          AND status = 'absent'
+          AND attend_date BETWEEN (CURRENT_DATE - 29) AND CURRENT_DATE;
+
+        IF v_count < 3 THEN
+            UPDATE absence_alerts
+               SET status          = 'acknowledged',
+                   acknowledged_by = '系统（缺勤已更正）',
+                   acknowledged_at = now()
+             WHERE monk_id = NEW.monk_id AND status = 'open';
         END IF;
     END IF;
     RETURN NEW;

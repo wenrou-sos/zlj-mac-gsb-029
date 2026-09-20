@@ -9,6 +9,7 @@ const router = createRouter({
     { path: '/inspections', name: 'inspections', component: () => import('./pages/InspectionsPage.vue'), meta: { title: '考察与常住' } },
     { path: '/permanent', name: 'permanent', component: () => import('./pages/PermanentPage.vue'), meta: { title: '常住档案' } },
     { path: '/attendance', name: 'attendance', component: () => import('./pages/AttendancePage.vue'), meta: { title: '早晚课考勤' } },
+    { path: '/leaves', name: 'leaves', component: () => import('./pages/LeavesPage.vue'), meta: { title: '请销假审批' } },
     { path: '/alerts', name: 'alerts', component: () => import('./pages/AlertsPage.vue'), meta: { title: '缺勤提醒' } },
   ],
 });

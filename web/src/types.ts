@@ -4,6 +4,7 @@ export type MonkStatus = 'guadan' | 'inspection' | 'permanent' | 'left';
 export type AttendanceStatus = 'present' | 'absent' | 'leave';
 export type SessionType = 'morning' | 'evening';
 export type InspectionResult = 'pending' | 'passed' | 'failed';
+export type LeaveStatus = 'pending' | 'approved' | 'rejected' | 'cancelled' | 'returned';
 
 export interface Monk {
   id: string;
@@ -107,6 +108,31 @@ export interface AttendanceSummary {
   has_open_alert: boolean;
 }
 
+export interface LeaveRequest {
+  id: string;
+  monk_id: string;
+  start_date: string;
+  end_date: string;
+  sessions: SessionType[];
+  reason: string;
+  status: LeaveStatus;
+  requested_by: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  review_note: string | null;
+  return_date: string | null;
+  returned_by: string | null;
+  returned_at: string | null;
+  created_at: string;
+  updated_at: string;
+  dharma_name: string;
+  monk_status: MonkStatus;
+  current_post: string | null;
+  room_no: string | null;
+  bed_no: string | null;
+  days: number;
+}
+
 export interface AbsenceAlert {
   id: string;
   monk_id: string;
@@ -128,6 +154,8 @@ export interface Dashboard {
   status_counts: { status: MonkStatus; n: number }[];
   attendance_today: Record<string, number>;
   open_alerts: number;
+  pending_leaves: number;
+  on_leave_today: number;
   expiring_guadan: {
     id: string; dharma_name: string; expected_leave: string; days_left: number;
   }[];

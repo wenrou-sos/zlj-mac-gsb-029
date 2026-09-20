@@ -125,14 +125,66 @@ INSERT INTO attendance (monk_id, attend_date, session, status)
 SELECT m.id, d.d::date, s.sess::session_type,
        (CASE WHEN m.id = '22222222-2222-2222-2222-222222222215'
                  AND d.d::date >= CURRENT_DATE - 2 THEN 'absent'
-            WHEN m.id = '22222222-2222-2222-2222-222222222212'
-                 AND d.d::date = CURRENT_DATE - 1 AND s.sess = 'evening' THEN 'leave'
             ELSE 'present' END)::attendance_status
 FROM monks m
 CROSS JOIN generate_series(CURRENT_DATE - 2, CURRENT_DATE, INTERVAL '1 day') AS d(d)
 CROSS JOIN (VALUES ('morning'), ('evening')) AS s(sess)
 WHERE m.status IN ('permanent','guadan','inspection')
-  AND NOT (m.id = '22222222-2222-2222-2222-222222222215' AND d.d::date = CURRENT_DATE);
+  AND NOT (m.id = '22222222-2222-2222-2222-222222222215' AND d.d::date = CURRENT_DATE)
+  -- 善持前日起晚课告假（见下方请假单），考勤由请假同步生成
+  AND NOT (m.id = '22222222-2222-2222-2222-222222222212'
+           AND s.sess = 'evening' AND d.d::date >= CURRENT_DATE - 1);
 
 -- 演戒近 30 日缺勤满 3 次，absence_alerts 由触发器自动生成
 -- （见 01_schema.sql 中 trg_attendance_absence）
+
+-- ---------------------------------------------------------------------
+-- 请销假演示数据
+-- ---------------------------------------------------------------------
+-- 善持：前日起告假三日（晚课），知客慧海已准假 → 考勤自动同步为请假
+INSERT INTO leave_requests (id, monk_id, start_date, end_date, sessions, reason, status,
+                            requested_by, reviewed_by, reviewed_at, review_note)
+VALUES ('44444444-4444-4444-4444-444444444401',
+        '22222222-2222-2222-2222-222222222212',
+        CURRENT_DATE - 1, CURRENT_DATE + 1, '{evening}',
+        '赴净土寺参加佛七', 'approved', '本人', '慧海', now() - INTERVAL '1 day', '佛七因缘难得，准假');
+
+-- 与审批通过相同的同步逻辑：请假期间课次登记为「请假」（不覆盖已登记的随众）
+INSERT INTO attendance (monk_id, attend_date, session, status, note, recorded_by, leave_id)
+SELECT '22222222-2222-2222-2222-222222222212', d::date, 'evening', 'leave',
+       '请假审批通过', '慧海', '44444444-4444-4444-4444-444444444401'
+FROM generate_series(CURRENT_DATE - 1, CURRENT_DATE + 1, INTERVAL '1 day') AS d
+ON CONFLICT (monk_id, attend_date, session) DO UPDATE
+   SET status = 'leave', leave_id = EXCLUDED.leave_id,
+       note = EXCLUDED.note, recorded_by = EXCLUDED.recorded_by
+ WHERE attendance.status IS DISTINCT FROM 'present';
+
+-- 定空：此前告假两日，已按期销假
+INSERT INTO leave_requests (id, monk_id, start_date, end_date, sessions, reason, status,
+                            requested_by, reviewed_by, reviewed_at, return_date, returned_by, returned_at)
+VALUES ('44444444-4444-4444-4444-444444444402',
+        '22222222-2222-2222-2222-222222222214',
+        CURRENT_DATE - 5, CURRENT_DATE - 4, '{morning,evening}',
+        '回乡祭扫', 'returned', '本人', '慧海', now() - INTERVAL '6 days',
+        CURRENT_DATE - 4, '慧海', now() - INTERVAL '4 days');
+
+UPDATE attendance
+   SET status = 'leave', leave_id = '44444444-4444-4444-4444-444444444402',
+       note = '请假审批通过', recorded_by = '慧海'
+ WHERE monk_id = '22222222-2222-2222-2222-222222222214'
+   AND attend_date BETWEEN CURRENT_DATE - 5 AND CURRENT_DATE - 4;
+
+-- 行简：明后两日请假，待知客审批
+INSERT INTO leave_requests (id, monk_id, start_date, end_date, sessions, reason, status, requested_by)
+VALUES ('44444444-4444-4444-4444-444444444403',
+        '22222222-2222-2222-2222-222222222213',
+        CURRENT_DATE + 1, CURRENT_DATE + 2, '{morning,evening}',
+        '回乡探望剃度师', 'pending', '本人');
+
+-- 演戒：照看同参未及告假，补提请假
+-- （知客批准后，近三日缺勤将自动转为请假，缺勤提醒随之自动办结）
+INSERT INTO leave_requests (id, monk_id, start_date, end_date, sessions, reason, status, requested_by)
+VALUES ('44444444-4444-4444-4444-444444444404',
+        '22222222-2222-2222-2222-222222222215',
+        CURRENT_DATE - 2, CURRENT_DATE + 1, '{morning,evening}',
+        '赴医院照看同参道友，未及告假，今补上', 'pending', '客堂代录');

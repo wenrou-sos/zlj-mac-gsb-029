@@ -7,6 +7,7 @@ import guadanRoutes from './routes/guadan.js';
 import roomsRoutes from './routes/rooms.js';
 import inspectionsRoutes from './routes/inspections.js';
 import attendanceRoutes from './routes/attendance.js';
+import leavesRoutes from './routes/leaves.js';
 import alertsRoutes from './routes/alerts.js';
 import dashboardRoutes from './routes/dashboard.js';
 
@@ -21,6 +22,7 @@ await app.register(guadanRoutes, { prefix: '/api/guadan' });
 await app.register(roomsRoutes, { prefix: '/api/rooms' });
 await app.register(inspectionsRoutes, { prefix: '/api/inspections' });
 await app.register(attendanceRoutes, { prefix: '/api/attendance' });
+await app.register(leavesRoutes, { prefix: '/api/leaves' });
 await app.register(alertsRoutes, { prefix: '/api/alerts' });
 await app.register(dashboardRoutes, { prefix: '/api/dashboard' });
 

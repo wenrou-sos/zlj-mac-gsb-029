@@ -16,17 +16,20 @@
 | 考察与常住 | 发心常住转入 **3–6 个月**考察期；考察通过记录**羯磨日期**转常住；不通过退回挂单 |
 | 常住档案 | 法名、字辈、剃度师、受戒时间与戒场、担任职务（知客/维那/典座等） |
 | 早晚课考勤 | 早课/晚课按日整堂登记（随众/缺勤/请假），支持按僧人区间查询 |
-| 缺勤提醒 | **近 30 日缺勤累计满 3 次，数据库触发器自动生成客堂待办**，知客知悉后归档 |
+| 请销假审批 | 提交请假（事由/起讫/课次）→ 知客批准或驳回 → 回寺销假；待审批可撤销 |
+| 考勤自动同步 | 准假后假期内考勤自动登记为**请假**（不覆盖已登记的随众）；提前销假自动清除剩余假期的同步考勤 |
+| 缺勤提醒 | **近 30 日缺勤累计满 3 次，数据库触发器自动生成客堂待办**，知客知悉后归档；缺勤被更正（如补假获批）不足 3 次时**自动办结** |
 
 ## 目录结构
 
 ```
 .
 ├── db/init/            # PostgreSQL 建表(01)与演示数据(02)
+├── db/migrations/      # 既有数据库的增量迁移（请销假等）
 ├── server/             # Fastify + TS API
-│   └── src/routes/     # monks / guadan / rooms / inspections / attendance / alerts / dashboard
+│   └── src/routes/     # monks / guadan / rooms / inspections / attendance / leaves / alerts / dashboard
 ├── web/                # Vue3 + TS + Naive UI
-│   └── src/pages/      # 七个业务页面
+│   └── src/pages/      # 八个业务页面
 └── docker-compose.yml  # 一键启动 PostgreSQL
 ```
 
@@ -75,6 +78,16 @@ PGHOST=localhost  PGPORT=5432  PGDATABASE=sangha  PGUSER=postgres  PGPASSWORD=po
 - 3 位挂单、2 位考察期僧人
 - 云水寮/静修楼共 11 个床位
 - 近 7 天早晚课考勤；僧人 **演戒** 近 30 日缺勤 4 次，已自动生成一条客堂缺勤提醒
+- 请销假：善持晚课告假 3 天（在假中）、定空已销假、行简与演戒各有一件**待审批**；
+  批准演戒的补假后，其缺勤记录自动转为请假，缺勤提醒随之自动办结
+
+## 既有数据库升级
+
+已在运行的数据库执行一次增量迁移即可（可重复执行）：
+
+```bash
+psql -d sangha -f db/migrations/20260920_leave_requests.sql
+```
 
 ## 主要接口
 
@@ -92,5 +105,10 @@ PGHOST=localhost  PGPORT=5432  PGDATABASE=sangha  PGUSER=postgres  PGPASSWORD=po
 | GET/POST | `/api/attendance` | 某日某课名册/单条登记 |
 | POST | `/api/attendance/bulk` | 整堂批量登记 |
 | GET | `/api/attendance/summary` | 区间缺勤统计 |
+| GET/POST | `/api/leaves` | 请假单列表/提交请假 |
+| POST | `/api/leaves/:id/approve` | 知客准假（自动同步考勤为请假） |
+| POST | `/api/leaves/:id/reject` | 知客驳回 |
+| POST | `/api/leaves/:id/cancel` | 撤销请假（待审批） |
+| POST | `/api/leaves/:id/return` | 销假（提前销假清除剩余同步考勤） |
 | GET/POST | `/api/alerts` | 缺勤提醒 / 知悉 |
 | GET | `/api/dashboard` | 客堂总览 |

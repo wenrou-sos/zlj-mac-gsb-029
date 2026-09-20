@@ -41,6 +41,22 @@ export const ATTENDANCE_TYPE: Record<string, 'success' | 'error' | 'warning'> = 
   leave: 'warning',
 };
 
+export const LEAVE_STATUS_LABEL: Record<string, string> = {
+  pending: '待审批',
+  approved: '在假中',
+  rejected: '已驳回',
+  cancelled: '已撤销',
+  returned: '已销假',
+};
+
+export const LEAVE_STATUS_TYPE: Record<string, 'default' | 'info' | 'success' | 'warning' | 'error'> = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'error',
+  cancelled: 'default',
+  returned: 'info',
+};
+
 export const POSTS = ['方丈', '首座', '西堂', '后堂', '堂主', '知客', '维那', '典座', '僧值', '寮元', '书记', '衣钵', '汤药', '悦众'];
 
 export const SESSION_LABEL: Record<string, string> = {
