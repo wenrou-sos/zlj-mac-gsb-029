@@ -59,7 +59,7 @@ import {
 import type { MenuOption } from 'naive-ui';
 import {
   HomeOutline, DocumentTextOutline, BedOutline, TimerOutline, PeopleOutline,
-  CalendarNumberOutline, NotificationsOutline,
+  CalendarNumberOutline, NotificationsOutline, WalkOutline,
 } from '@vicons/ionicons5';
 import { http } from './api.js';
 
@@ -67,12 +67,17 @@ const router = useRouter();
 const route = useRoute();
 const collapsed = ref(false);
 const openAlerts = ref(0);
+const pendingLeaves = ref(0);
 let timer: number | undefined;
 
 async function fetchOpenCount() {
   try {
-    const { data } = await http.get<{ n: number }>('/alerts/open-count');
-    openAlerts.value = data.n;
+    const [alerts, leaves] = await Promise.all([
+      http.get<{ n: number }>('/alerts/open-count'),
+      http.get<{ n: number }>('/leaves/pending-count'),
+    ]);
+    openAlerts.value = alerts.data.n;
+    pendingLeaves.value = leaves.data.n;
   } catch {
     /* 忽略轮询错误 */
   }
@@ -93,6 +98,17 @@ const menuOptions = computed<MenuOption[]>(() => [
   { label: '考察与常住', key: '/inspections', icon: icon(TimerOutline) },
   { label: '常住档案', key: '/permanent', icon: icon(PeopleOutline) },
   { label: '早晚课考勤', key: '/attendance', icon: icon(CalendarNumberOutline) },
+  {
+    label: () =>
+      h('span', { style: 'display:flex;align-items:center;gap:8px;' }, [
+        h('span', '请销假审批'),
+        pendingLeaves.value > 0
+          ? h(NBadge, { value: pendingLeaves.value, max: 99, type: 'warning', size: 'small' })
+          : null,
+      ]),
+    key: '/leaves',
+    icon: icon(WalkOutline),
+  },
   {
     label: () =>
       h('span', { style: 'display:flex;align-items:center;gap:8px;' }, [

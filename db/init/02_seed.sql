@@ -136,3 +136,37 @@ WHERE m.status IN ('permanent','guadan','inspection')
 
 -- 演戒近 30 日缺勤满 3 次，absence_alerts 由触发器自动生成
 -- （见 01_schema.sql 中 trg_attendance_absence）
+
+-- ---------------------------------------------------------------------
+-- 请销假演示数据
+-- ---------------------------------------------------------------------
+-- 行简（考察期）：已批准的病假（昨日至明日），考勤已自动同步为请假
+INSERT INTO leave_requests (id, monk_id, leave_type, start_date, end_date, reason,
+                            status, approved_by, approved_at)
+VALUES ('44444444-4444-4444-4444-444444444401',
+        '22222222-2222-2222-2222-222222222213',
+        '病假', CURRENT_DATE - 1, CURRENT_DATE + 1, '下山就医，遵医嘱静养',
+        'approved', '慧海', now());
+
+INSERT INTO attendance (monk_id, attend_date, session, status, note, recorded_by, leave_id)
+SELECT '22222222-2222-2222-2222-222222222213', d.d::date, s.sess::session_type,
+       'leave'::attendance_status, '请假单同步（病假）', '慧海',
+       '44444444-4444-4444-4444-444444444401'
+FROM generate_series(CURRENT_DATE - 1, CURRENT_DATE + 1, INTERVAL '1 day') AS d(d)
+CROSS JOIN (VALUES ('morning'), ('evening')) AS s(sess)
+ON CONFLICT (monk_id, attend_date, session)
+DO UPDATE SET status='leave', note=EXCLUDED.note,
+              recorded_by=EXCLUDED.recorded_by, leave_id=EXCLUDED.leave_id
+WHERE attendance.status <> 'present';
+
+-- 善持（挂单）：待审批的事假（明日起 3 天），等待知客审批
+INSERT INTO leave_requests (monk_id, leave_type, start_date, end_date, reason)
+VALUES ('22222222-2222-2222-2222-222222222212',
+        '事假', CURRENT_DATE + 1, CURRENT_DATE + 3, '俗家母亲寿辰，回家探望');
+
+-- 法远（挂单）：已撤销的请假（提交后行程取消）
+INSERT INTO leave_requests (monk_id, leave_type, start_date, end_date, reason,
+                            status, cancelled_at)
+VALUES ('22222222-2222-2222-2222-222222222211',
+        '参学', CURRENT_DATE - 5, CURRENT_DATE - 3, '赴邻县寺院听经',
+        'cancelled', now());

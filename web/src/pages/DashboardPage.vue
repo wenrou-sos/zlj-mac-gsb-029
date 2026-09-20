@@ -42,7 +42,17 @@
           <n-statistic label="缺勤满次待办" :value="data?.open_alerts ?? 0">
             <template #suffix>件</template>
           </n-statistic>
-          <div class="stat-sub">客堂提醒，待知客知悉</div>
+          <div class="stat-sub">
+            客堂提醒，待知客知悉
+            <n-text
+              v-if="(data?.pending_leaves ?? 0) > 0"
+              type="warning"
+              class="leave-link"
+              @click.stop="router.push('/leaves')"
+            >
+              · 请假待审批 {{ data?.pending_leaves }} 件 →
+            </n-text>
+          </div>
         </n-card>
       </n-grid-item>
     </n-grid>
@@ -169,5 +179,9 @@ function inspectionPercent(i: Inspection) {
 }
 .clickable {
   cursor: pointer;
+}
+.leave-link {
+  cursor: pointer;
+  text-decoration: underline;
 }
 </style>

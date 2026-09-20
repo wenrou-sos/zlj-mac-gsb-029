@@ -23,6 +23,9 @@ CREATE TYPE attendance_status AS ENUM ('present', 'absent', 'leave');
 
 CREATE TYPE alert_status AS ENUM ('open', 'acknowledged');
 
+CREATE TYPE leave_status AS ENUM ('pending', 'approved', 'rejected', 'cancelled');
+-- pending 待审批 / approved 已批准 / rejected 已驳回 / cancelled 已撤销
+
 -- ---------------------------------------------------------------------
 -- 僧人总表（挂单/考察/常住共用身份记录）
 -- ---------------------------------------------------------------------
@@ -113,12 +116,40 @@ CREATE TABLE attendance (
     session     session_type NOT NULL,
     status      attendance_status NOT NULL DEFAULT 'present',
     recorded_by VARCHAR(64),                               -- 登记人（知客/僧值）
+    leave_id    UUID,                                      -- 由请假单同步生成时指向 leave_requests
     note        TEXT,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (monk_id, attend_date, session)
 );
 CREATE INDEX idx_attendance_date ON attendance(attend_date);
+
+-- ---------------------------------------------------------------------
+-- 请销假（知客审批；批准后考勤自动记请假，撤销时自动回滚）
+-- ---------------------------------------------------------------------
+CREATE TABLE leave_requests (
+    id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    monk_id         UUID NOT NULL REFERENCES monks(id) ON DELETE CASCADE,
+    leave_type      VARCHAR(32) NOT NULL DEFAULT '事假',    -- 事假/病假/探亲/参学等
+    start_date      DATE NOT NULL,                          -- 请假起
+    end_date        DATE NOT NULL,                          -- 请假止（含当日）
+    reason          TEXT,                                   -- 请假事由
+    status          leave_status NOT NULL DEFAULT 'pending',
+    approved_by     VARCHAR(64),                            -- 审批人（知客）
+    approved_at     TIMESTAMPTZ,
+    reject_reason   TEXT,                                   -- 驳回原因
+    cancelled_at    TIMESTAMPTZ,                            -- 撤销/销假时间
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT leave_dates_chk CHECK (end_date >= start_date)
+);
+CREATE INDEX idx_leave_status ON leave_requests(status);
+CREATE INDEX idx_leave_monk ON leave_requests(monk_id);
+
+-- attendance.leave_id 外键（请假单删除时保留考勤，仅置空）
+ALTER TABLE attendance
+    ADD CONSTRAINT attendance_leave_fk
+    FOREIGN KEY (leave_id) REFERENCES leave_requests(id) ON DELETE SET NULL;
 
 -- ---------------------------------------------------------------------
 -- 缺勤满三次自动提醒（客堂待办）
@@ -151,6 +182,8 @@ CREATE TRIGGER trg_monks_updated   BEFORE UPDATE ON monks
 CREATE TRIGGER trg_guadan_updated  BEFORE UPDATE ON guadan
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 CREATE TRIGGER trg_attendance_updated BEFORE UPDATE ON attendance
+    FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+CREATE TRIGGER trg_leave_updated   BEFORE UPDATE ON leave_requests
     FOR EACH ROW EXECUTE FUNCTION set_updated_at();
 
 -- ---------------------------------------------------------------------

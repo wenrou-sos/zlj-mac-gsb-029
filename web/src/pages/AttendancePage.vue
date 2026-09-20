@@ -204,7 +204,12 @@ const rosterColumns: DataTableColumns<AttendanceRow> = [
     render: (r) => {
       const s = statusOf(r);
       if (!s) return h(NText, { depth: 3 }, { default: () => '未登记' });
-      return h(NTag, { size: 'small', type: ATTENDANCE_TYPE[s], bordered: false }, { default: () => ATTENDANCE_LABEL[s] });
+      return h('span', { style: 'display:inline-flex;align-items:center;gap:6px' }, [
+        h(NTag, { size: 'small', type: ATTENDANCE_TYPE[s], bordered: false }, { default: () => ATTENDANCE_LABEL[s] }),
+        r.leave_id
+          ? h(NTag, { size: 'tiny', type: 'info', bordered: false }, { default: () => '请假单同步' })
+          : null,
+      ]);
     },
   },
 ];

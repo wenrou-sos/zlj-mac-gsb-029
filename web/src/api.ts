@@ -47,3 +47,19 @@ export const SESSION_LABEL: Record<string, string> = {
   morning: '早课',
   evening: '晚课',
 };
+
+export const LEAVE_STATUS_LABEL: Record<string, string> = {
+  pending: '待审批',
+  approved: '已批准',
+  rejected: '已驳回',
+  cancelled: '已撤销',
+};
+
+export const LEAVE_STATUS_TYPE: Record<string, 'default' | 'info' | 'success' | 'warning' | 'error'> = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'error',
+  cancelled: 'default',
+};
+
+export const LEAVE_TYPES = ['事假', '病假', '探亲', '参学', '其他'];

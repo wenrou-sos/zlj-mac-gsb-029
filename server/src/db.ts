@@ -47,3 +47,4 @@ export const MONK_STATUSES = ['guadan', 'inspection', 'permanent', 'left'] as co
 export const GUADAN_STATUSES = ['active', 'closed'] as const;
 export const INSPECTION_RESULTS = ['pending', 'passed', 'failed'] as const;
 export const ALERT_STATUSES = ['open', 'acknowledged'] as const;
+export const LEAVE_STATUSES = ['pending', 'approved', 'rejected', 'cancelled'] as const;

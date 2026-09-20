@@ -19,7 +19,7 @@ const routes: FastifyPluginAsync = async (app) => {
     const sess = asEnum(session, ['morning', 'evening'] as const, '课次');
     return many(`
       SELECT m.id AS monk_id, m.dharma_name, m.status AS monk_status, m.current_post,
-             a.id, a.status, a.note, a.recorded_by, a.updated_at
+             a.id, a.status, a.note, a.recorded_by, a.leave_id, a.updated_at
       FROM monks m
       LEFT JOIN attendance a
         ON a.monk_id = m.id AND a.attend_date = $1 AND a.session = $2::session_type

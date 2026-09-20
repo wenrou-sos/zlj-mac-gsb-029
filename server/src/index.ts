@@ -8,6 +8,7 @@ import roomsRoutes from './routes/rooms.js';
 import inspectionsRoutes from './routes/inspections.js';
 import attendanceRoutes from './routes/attendance.js';
 import alertsRoutes from './routes/alerts.js';
+import leavesRoutes from './routes/leaves.js';
 import dashboardRoutes from './routes/dashboard.js';
 
 const app = Fastify({ logger: true });
@@ -22,6 +23,7 @@ await app.register(roomsRoutes, { prefix: '/api/rooms' });
 await app.register(inspectionsRoutes, { prefix: '/api/inspections' });
 await app.register(attendanceRoutes, { prefix: '/api/attendance' });
 await app.register(alertsRoutes, { prefix: '/api/alerts' });
+await app.register(leavesRoutes, { prefix: '/api/leaves' });
 await app.register(dashboardRoutes, { prefix: '/api/dashboard' });
 
 // 统一错误形态
